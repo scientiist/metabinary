@@ -1,11 +1,10 @@
 #include <iostream>
 #include <map>
 #include <fstream>
-#include <cstdint>
 #include <vector>
 #include <netinet/in.h>
 #include <cstring>
-#include <memory>
+
 
 /* Metabinary is envisioned as a standard protocol for;
  * high performance networking, as well as a versatile storage format for data;
@@ -13,6 +12,139 @@
  *
  */
 namespace metabinary {
+    static int write_uint8(uint8_t* buf, int index, uint8_t val)      {
+        int offset = index;
+        buf[offset] = htons(val);
+        offset++;
+        return offset-index;
+    }
+    static int write_uint16(uint8_t* buf, int index, uint16_t val)    {
+        int offset = index;
+        uint16_t data = htons(val);
+        memcpy(buf+offset, &data, sizeof(uint16_t));
+        offset += sizeof(uint16_t);
+        return offset - index;
+    }
+    static int write_uint32(uint8_t* buf, int index, uint32_t val)    {
+        int offset = index;
+        uint32_t data = htonl(val);
+        memcpy(buf+offset, &data, sizeof(uint32_t));
+        offset += sizeof(uint32_t);
+        return offset - index;
+    }
+    static int write_uint64(uint8_t* buf, int index, uint64_t val)    {
+        int offset = index;
+        uint64_t data = htonl(val);
+        memcpy(buf+offset, &data, sizeof(uint64_t));
+        offset += sizeof(uint64_t);
+        return offset - index;
+    }
+    static int write_int8(uint8_t* buf, int index, int8_t val)         {
+        int offset = index;
+        int8_t data = htons(val);
+        memcpy(buf+offset, &data, sizeof(int8_t));
+        offset += sizeof(int8_t);
+        return offset - index;
+    }
+    static int write_int16(uint8_t* buf, int index, int16_t val)       {
+        int offset = index;
+        int16_t data = htons(val);
+        memcpy(buf+offset, &data, sizeof(int16_t));
+        offset += sizeof(int16_t);
+        return offset - index;
+    }
+    static int write_int32(uint8_t* buf, int index, int32_t val)       {
+        int offset = index;
+        int32_t data = htonl(val);
+        memcpy(buf+offset, &data, sizeof(int32_t));
+        offset += sizeof(int32_t);
+        return offset - index;
+    }
+    static int write_int64(uint8_t* buf, int index, int64_t val)       {
+        int offset = index;
+        int64_t data = htonl(val);
+        memcpy(buf+offset, &data, sizeof(int64_t));
+        offset += sizeof(int64_t);
+        return offset - index;
+    }
+    static int write_float(uint8_t* buf, int index, float val)        {
+        int offset = index;
+        memcpy(buf+offset, &val, sizeof(val));
+        offset += sizeof(float);
+        return offset - index;
+    }
+    static int write_double(uint8_t* buf, int index, double val)      {
+        int offset = index;
+        memcpy(buf+offset, &val, sizeof(val));
+        offset += sizeof(double);
+        return offset - index;
+    }
+    static int write_string(uint8_t* buf, int index, std::string val) {
+        int offset = index;
+        // Add Payload Length
+        offset += write_uint32(buf, offset, htonl(val.length()));
+        // Add Payload (As UTF8-Encoded String)
+        memcpy(buf+offset, &val, val.length());
+        offset += val.length();
+        return offset - index;
+    }
+    static uint8_t read_uint8(uint8_t* buf, int index)   {
+        uint8_t outpt = 0;
+        memcpy(&outpt, buf+index, sizeof(uint8_t));
+        return outpt;
+    }
+    static uint16_t read_uint16(uint8_t* buf, int index) {
+        uint16_t outpt = 0;
+        memcpy(&outpt, buf+index, sizeof(uint16_t));
+        return ntohs(outpt);
+    }
+    static uint32_t read_uint32(uint8_t* buf, int index) {
+        uint32_t outpt = 0;
+        memcpy(&outpt, buf+index, sizeof(uint32_t));
+        return ntohl(outpt);
+    }
+    static uint64_t read_uint64(uint8_t* buf, int index) {
+        uint64_t outpt = 0;
+        memcpy(&outpt, buf+index, sizeof(uint64_t));
+        return ntohl(outpt);
+    }
+    static int8_t read_int8(uint8_t* buf, int index)      {
+        int8_t outpt = 0;
+        memcpy(&outpt, buf+index, sizeof(int8_t));
+        return ntohs(outpt);
+    }
+    static int16_t read_int16(uint8_t* buf, int index)    {
+        int16_t outpt = 0;
+        memcpy(&outpt, buf+index, sizeof(int16_t));
+        return ntohs(outpt);
+    }
+    static int32_t read_int32(uint8_t* buf, int index)    {
+        int32_t outpt = 0;
+        memcpy(&outpt, buf+index, sizeof(int32_t));
+        return ntohl(outpt);
+    }
+    static int64_t read_int64(uint8_t* buf, int index)    {
+        int64_t outpt = 0;
+        memcpy(&outpt, buf+index, sizeof(int64_t));
+        return ntohl(outpt);
+    }
+    static float read_float(uint8_t* buf, int index)      {
+        float outpt = 0;
+        memcpy(&outpt, buf+index, sizeof(float));
+        return outpt;
+    }
+    static double read_double(uint8_t* buf, int index)    {
+        double outpt = 0;
+        memcpy(&outpt, buf+index, sizeof(double));
+        return outpt;
+    }
+    static std::string read_string(uint8_t* buf, int index) {
+        uint32_t str_len = read_uint32(buf, index);
+        char val[str_len];
+        memcpy(&val, buf+index, str_len);
+        std::string out(val, str_len);
+        return out;
+    }
     typedef enum {
         tag_end = 0,
         tag_uint8, tag_uint16, tag_uint32, tag_uint64,
@@ -25,7 +157,6 @@ namespace metabinary {
         tag_identifier = -1,
         tag_primitive = -2,
     } tag_type_t;
-
     class tag {
     public:
         std::string name;
@@ -37,96 +168,6 @@ namespace metabinary {
         {
             return 0;
         }
-
-        static int write_uint8(uint8_t* buf, int index, uint8_t val)      {
-            int offset = index;
-            buf[offset] = htons(val);
-            offset++;
-            return offset-index;
-        }
-        static int write_uint16(uint8_t* buf, int index, uint16_t val)    {
-            int offset = index;
-            uint16_t data = htons(val);
-            memcpy(buf+offset, &data, sizeof(uint16_t));
-            offset += sizeof(uint16_t);
-            return offset - index;
-        }
-        static int write_uint32(uint8_t* buf, int index, uint32_t val)    {
-            int offset = index;
-            uint32_t data = htonl(val);
-            memcpy(buf+offset, &data, sizeof(uint32_t));
-            offset += sizeof(uint32_t);
-            return offset - index;
-        }
-        static int write_uint64(uint8_t* buf, int index, uint64_t val)    {
-            int offset = index;
-            uint64_t data = htonl(val);
-            memcpy(buf+offset, &data, sizeof(uint64_t));
-            offset += sizeof(uint64_t);
-            return offset - index;
-        }
-        static int write_int8(uint8_t* buf, int index, int8_t val)         {
-            int offset = index;
-            int8_t data = htons(val);
-            memcpy(buf+offset, &data, sizeof(int8_t));
-            offset += sizeof(int8_t);
-            return offset - index;
-        }
-        static int write_int16(uint8_t* buf, int index, int16_t val)       {
-            int offset = index;
-            int16_t data = htons(val);
-            memcpy(buf+offset, &data, sizeof(int16_t));
-            offset += sizeof(int16_t);
-            return offset - index;
-        }
-        static int write_int32(uint8_t* buf, int index, int32_t val)       {
-            int offset = index;
-            int32_t data = htonl(val);
-            memcpy(buf+offset, &data, sizeof(int32_t));
-            offset += sizeof(int32_t);
-            return offset - index;
-        }
-        static int write_int64(uint8_t* buf, int index, int64_t val)       {
-            int offset = index;
-            int64_t data = htonl(val);
-            memcpy(buf+offset, &data, sizeof(int64_t));
-            offset += sizeof(int64_t);
-            return offset - index;
-        }
-        static int write_float(uint8_t* buf, int index, float val)        {
-            int offset = index;
-            memcpy(buf+offset, &val, sizeof(val));
-            offset += sizeof(float);
-            return offset - index;
-        }
-        static int write_double(uint8_t* buf, int index, double val)      {
-            int offset = index;
-            memcpy(buf+offset, &val, sizeof(val));
-            offset += sizeof(double);
-            return offset - index;
-        }
-        static int write_string(uint8_t* buf, int index, std::string val) {
-            int offset = index;
-            // Add Payload Length
-            offset += write_uint32(buf, offset, htonl(val.length()));
-            // Add Payload (As UTF8-Encoded String)
-            memcpy(buf+offset, &val, val.length());
-            offset += val.length();
-            return offset - index;
-        }
-
-        // TODO: Write read_t member functions
-        static uint8_t read_uint8(uint8_t* buf, int index)   { }
-        static uint16_t read_uint16(uint8_t* buf, int index) { }
-        static uint32_t read_uint32(uint8_t* buf, int index) { }
-        static uint64_t read_uint64(uint8_t* buf, int index) { }
-        static int8_t read_int8(int8_t* buf, int index)      { }
-        static int16_t read_int16(int8_t* buf, int index)    { }
-        static int32_t read_int32(int8_t* buf, int index)    { }
-        static int64_t read_int64(int8_t* buf, int index)    { }
-        static float read_float(int8_t* buf, int index)      { }
-        static double read_double(int8_t* buf, int index)    { }
-        static std::string read_string(int8_t* buf, int index) { }
 
         //static tag deserialize(byte* data);
         // Encodes name length + utf8 string
@@ -147,7 +188,6 @@ namespace metabinary {
 
     protected:
     };
-
     class end_tag : public tag {
     public:
         int serialize(uint8_t *buf, int startidx) override {}
@@ -328,7 +368,6 @@ namespace metabinary {
             return write_int64(buf, index, payload);
         }
     };
-
     class float_tag : public tag {
         float payload;
     public:
@@ -387,8 +426,7 @@ namespace metabinary {
         }
 
     };
-    template <typename T>
-    class list_tag : public tag {
+    template <typename T> class list_tag : public tag {
     public:
     private:
     };
@@ -442,8 +480,11 @@ namespace metabinary {
         root_tag(std::string name) : compound_tag(name) {}
         root_tag(std::string name, std::vector<tag*> tags) : compound_tag(name,  tags) {}
     };
-
     struct file { root_tag tag; };
+    static root_tag deserialize(uint8_t* buf)
+    {
+
+    }
 }
 
 int main() {
