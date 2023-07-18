@@ -12,6 +12,9 @@
  *
  */
 namespace metabinary {
+
+    // Functions for byte array IO
+    // Handles endianness of integer types
     static int write_uint8(uint8_t* buf, int index, uint8_t val)      {
         int offset = index;
         buf[offset] = htons(val);
@@ -162,7 +165,9 @@ namespace metabinary {
         std::string name;
 
         tag() {}
-        tag(std::string name) {}
+        tag(std::string name) {
+            this->name = name;
+        }
 
         virtual int serialize(uint8_t* buf, int startidx)
         {
@@ -413,6 +418,13 @@ namespace metabinary {
     class string_tag : public tag {
         std::string payload;
     public:
+        string_tag() {}
+        string_tag(std::string name) { this->name = name;}
+        string_tag(std::string name, std::string value)
+        {
+            this->name = name;
+            this->payload = value;
+        }
         int serialize(uint8_t *buf, int startidx) override
         {
             int offset = startidx;
@@ -426,7 +438,7 @@ namespace metabinary {
         }
 
     };
-    template <typename T> class list_tag : public tag {
+    class list_tag : public tag {
     public:
     private:
     };
@@ -473,7 +485,12 @@ namespace metabinary {
         void add_long() {}
         void add_float() {}
         void add_double() {}
+        void add_string(std::string name, std::string value)
+        {
+            this->payload.push_back(new string_tag(name, value));
+        }
     };
+    class custom_data_tag : public tag { };
     class root_tag : public compound_tag {
     public:
         root_tag() : compound_tag() {};
@@ -497,14 +514,50 @@ int main() {
         new uint16_tag{"quantity", 64},
         tone
     }};
+    item_meta.add_string("custom_name", "BALLIN");
+
 
     root_tag demo_file { "DEMO METABINARY FILE", {
-        new uint8_tag{"BITTY", 255},
-        new uint16_tag{"SHORTY", 420},
-        new uint32_tag{"INTEGER", 41221},
-        new uint64_tag{"BIGINT", 99999999999999},
+        new string_tag{"MAP_NAME", "LEVEL1"},
+        new string_tag{"MAP_AUTHOR", "brogrammer"},
+        new uint64_tag{"MAP_EDIT_TIMESTAMP", 999999},
+        new compound_tag{"SHADERCACHE"},
+        new compound_tag{"ENTITIES",{
+           new compound_tag{"1", {
+               new uint64_tag{"uuid", 42069},
+               new compound_tag{"pos", {
+                   new float_tag{"x", 0.25f},
+                   new float_tag{"y", 0.25f},
+                   new float_tag{"angle", 3.1415f},
+               }},
+           }},
+           new compound_tag{"2", {
+                   new uint64_tag{"uuid", 42044469},
+                   new compound_tag{"pos", {
+                           new float_tag{"x", 0.25f},
+                           new float_tag{"y", 0.25f},
+                           new float_tag{"angle", 3.1415f},
+                   }},
+           }},
+           new compound_tag{"3", {
+                   new uint64_tag{"uuid", 66642044469},
+                   new compound_tag{"pos", {
+                           new float_tag{"x", 0.25f},
+                           new float_tag{"y", 0.25f},
+                           new float_tag{"angle", 3.1415f},
+                   }},
+           }},
+           new compound_tag{"4", {
+                   new uint64_tag{"uuid", 696969},
+                   new compound_tag{"pos", {
+                           new float_tag{"x", 0.25f},
+                           new float_tag{"y", 0.25f},
+                           new float_tag{"angle", 3.1415f},
+                   }},
+           }},
+        }},
 
-        new compound_tag{"STATE", {
+        new compound_tag{"boyz", {
             new float_tag{"x", 0.25f},
             new float_tag{"y", 0.25f},
             new double_tag{"magic_number", 3.1414951},
