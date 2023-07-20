@@ -14,12 +14,20 @@
  */
 namespace metabinary {
 
+#pragma region Write Primitives
+    // Functions for byte array IO
+    // Handles endianness of integer types
+    // All integer types are written to NetworkByteOrder (big endian)
+    // and read back into HostByteOrder (lil endian for x86)
+
+    // Writes an 8-bit unsigned int (1-byte) to the buffer at the given index
     static int write_uint8(uint8_t* buf, int index, uint8_t val)      {
         int offset = index;
         buf[offset] = htons(val);
         offset++;
         return offset-index;
     }
+    // Writes a 16-bit unsigned int (2-bytes) to the buffer at the given index
     static int write_uint16(uint8_t* buf, int index, uint16_t val)    {
         int offset = index;
         uint16_t data = htons(val);
@@ -27,6 +35,7 @@ namespace metabinary {
         offset += sizeof(uint16_t);
         return offset - index;
     }
+    // Writes a 32-bit unsigned int (4 bytes) to the buffer at the given index
     static int write_uint32(uint8_t* buf, int index, uint32_t val)    {
         int offset = index;
         uint32_t data = htonl(val);
@@ -34,6 +43,7 @@ namespace metabinary {
         offset += sizeof(uint32_t);
         return offset - index;
     }
+    // Writes a 64-bit unsigned int (8 bytes) to the buffer at the given index
     static int write_uint64(uint8_t* buf, int index, uint64_t val)    {
         int offset = index;
         uint64_t data = htonl(val);
@@ -41,6 +51,7 @@ namespace metabinary {
         offset += sizeof(uint64_t);
         return offset - index;
     }
+    // Writes an 8-bit signed int (1-byte) to the buffer at the index
     static int write_int8(uint8_t* buf, int index, int8_t val)         {
         int offset = index;
         int8_t data = htons(val);
@@ -48,6 +59,7 @@ namespace metabinary {
         offset += sizeof(int8_t);
         return offset - index;
     }
+    // Writes a 16-bit signed int (2-bytes) to the buffer at the index
     static int write_int16(uint8_t* buf, int index, int16_t val)       {
         int offset = index;
         int16_t data = htons(val);
@@ -55,6 +67,7 @@ namespace metabinary {
         offset += sizeof(int16_t);
         return offset - index;
     }
+    // Writes a 32-bit signed int (4-bytes) to the buffer at the index
     static int write_int32(uint8_t* buf, int index, int32_t val)       {
         int offset = index;
         int32_t data = htonl(val);
@@ -62,6 +75,7 @@ namespace metabinary {
         offset += sizeof(int32_t);
         return offset - index;
     }
+    // Writes a 64-bit signed int (8-bytes) to the buffer at the index
     static int write_int64(uint8_t* buf, int index, int64_t val)       {
         int offset = index;
         int64_t data = htonl(val);
@@ -69,27 +83,32 @@ namespace metabinary {
         offset += sizeof(int64_t);
         return offset - index;
     }
+    // Writes a 32-bit IEEE 754 float
     static int write_float(uint8_t* buf, int index, float val)        {
         int offset = index;
         memcpy(buf+offset, &val, sizeof(val));
         offset += sizeof(float);
         return offset - index;
     }
+    // Writes a 64-bit IEEE 754 float
     static int write_double(uint8_t* buf, int index, double val)      {
         int offset = index;
         memcpy(buf+offset, &val, sizeof(val));
         offset += sizeof(double);
         return offset - index;
     }
+    // Writes a UTF8 String with it's length prefixed as a 16-bit unsigned int
     static int write_string(uint8_t* buf, int index, std::string val) {
         int offset = index;
         // Add Payload Length
-        offset += write_uint32(buf, offset, val.length());
+        offset += write_uint32(buf, offset, htonl(val.length()));
         // Add Payload (As UTF8-Encoded String)
         memcpy(buf+offset, &val, val.length());
         offset += val.length();
         return offset - index;
     }
+#pragma endregion
+#pragma region Read Primitives
     static uint8_t read_uint8(uint8_t* buf, int index)   {
         uint8_t outpt = 0;
         memcpy(&outpt, buf+index, sizeof(uint8_t));
@@ -147,6 +166,7 @@ namespace metabinary {
         std::string out(val, str_len);
         return out;
     }
+#pragma endregion
     typedef enum {
         tag_end = 0,
         tag_uint8, tag_uint16, tag_uint32, tag_uint64,
@@ -571,22 +591,55 @@ int main() {
 
 
     root_tag demo_file { "DEMO METABINARY FILE", {
-            new compound_tag{"boyz", {
-                    new float_tag{"x", 0.25f},
-                    new float_tag{"y", 0.25f},
-                    new double_tag{"magic_number", 3.1414951},
-            }},
         new string_tag{"MAP_NAME", "LEVEL1"},
         new string_tag{"MAP_AUTHOR", "brogrammer"},
         new uint64_tag{"MAP_EDIT_TIMESTAMP", 999999},
         new compound_tag{"SHADERCACHE"},
+        new compound_tag{"ENTITIES",{
+           new compound_tag{"1", {
+               new uint64_tag{"uuid", 42069},
+               new compound_tag{"pos", {
+                   new float_tag{"x", 0.25f},
+                   new float_tag{"y", 0.25f},
+                   new float_tag{"angle", 3.1415f},
+               }},
+           }},
+           new compound_tag{"2", {
+                   new uint64_tag{"uuid", 42044469},
+                   new compound_tag{"pos", {
+                           new float_tag{"x", 0.25f},
+                           new float_tag{"y", 0.25f},
+                           new float_tag{"angle", 3.1415f},
+                   }},
+           }},
+           new compound_tag{"3", {
+                   new uint64_tag{"uuid", 66642044469},
+                   new compound_tag{"pos", {
+                           new float_tag{"x", 0.25f},
+                           new float_tag{"y", 0.25f},
+                           new float_tag{"angle", 3.1415f},
+                   }},
+           }},
+           new compound_tag{"4", {
+                   new uint64_tag{"uuid", 696969},
+                   new compound_tag{"pos", {
+                           new float_tag{"x", 0.25f},
+                           new float_tag{"y", 0.25f},
+                           new float_tag{"angle", 3.1415f},
+                   }},
+           }},
+        }},
 
-
+        new compound_tag{"boyz", {
+            new float_tag{"x", 0.25f},
+            new float_tag{"y", 0.25f},
+            new double_tag{"magic_number", 3.1414951},
+        }},
     }};
 
     tag *t = demo_file.get("SHORTY");
-    //std::cout << t->name << std::endl;
-    uint8_t  byte_buff[1000];
+    std::cout << t->name << std::endl;
+    uint8_t  byte_buff[9999];
     demo_file.serialize(byte_buff, 0);
     // copy byte to char buff for writing
     std::cout << byte_buff << std::endl;
