@@ -4,6 +4,7 @@
 #include <vector>
 #include <netinet/in.h>
 #include <cstring>
+#include <cassert>
 
 
 /* Metabinary is envisioned as a standard protocol for;
@@ -13,8 +14,6 @@
  */
 namespace metabinary {
 
-    // Functions for byte array IO
-    // Handles endianness of integer types
     static int write_uint8(uint8_t* buf, int index, uint8_t val)      {
         int offset = index;
         buf[offset] = htons(val);
@@ -85,7 +84,7 @@ namespace metabinary {
     static int write_string(uint8_t* buf, int index, std::string val) {
         int offset = index;
         // Add Payload Length
-        offset += write_uint32(buf, offset, htonl(val.length()));
+        offset += write_uint32(buf, offset, val.length());
         // Add Payload (As UTF8-Encoded String)
         memcpy(buf+offset, &val, val.length());
         offset += val.length();
@@ -504,7 +503,61 @@ namespace metabinary {
     }
 }
 
+namespace tests {
+    void uint64_roundtrip_test() {
+        uint64_t begin = 40269;
+        uint8_t buf[sizeof(uint64_t)];
+        metabinary::write_uint64(buf, 0, begin);
+        uint64_t result = metabinary::read_uint64(buf, 0);
+        assert(begin == result && "YE NOTHIN");
+    }
+    void uint32_roundtrip_test() {
+        uint32_t begin = 42069;
+        uint8_t buf[sizeof(uint32_t)];
+        metabinary::write_uint32(buf, 0, begin);
+        uint32_t result = metabinary::read_uint32(buf, 0);
+        assert(begin == result && "DAWSH");
+    }
+    void uint16_roundtrip_test() {
+        uint16_t begin = 42069;
+        uint8_t buf[sizeof(uint16_t)];
+        metabinary::write_uint16(buf, 0, begin);
+        uint16_t result = metabinary::read_uint16(buf, 0);
+        assert(begin == result && "DAWSH");
+    }
+    void uint8_roundtrip_test() {
+        // lol
+        uint8_t begin = 255;
+        uint8_t buf[sizeof(uint8_t)];
+        metabinary::write_uint8(buf, 0, begin);
+        uint8_t result = metabinary::read_uint8(buf, 0);
+    }
+    void int64_roundtrip_test() { }
+    void int32_roundtrip_test() { }
+    void int16_roundtrip_test() { }
+    void int8_roundtrip_test() {
+
+    }
+    void string_roundtrip_test() {
+        std::string begin = "AYYO WHATS UP BABY";
+        uint8_t buf[begin.length()];
+        metabinary::write_string(buf, 0, begin);
+        std::string result = metabinary::read_string(buf, 0);
+        std::cout << begin << std::endl;
+        std::cout << result << std::endl;
+        assert(begin == result);
+    }
+}
+
+
 int main() {
+    // UNIT TESTING OF FUNCTIONS
+    tests::uint64_roundtrip_test();
+    tests::uint32_roundtrip_test();
+    tests::uint16_roundtrip_test();
+    tests::uint8_roundtrip_test();
+    tests::string_roundtrip_test();
+
     using namespace metabinary;
 
     auto tone = new uint16_tag{"b", 123};
@@ -518,57 +571,25 @@ int main() {
 
 
     root_tag demo_file { "DEMO METABINARY FILE", {
+            new compound_tag{"boyz", {
+                    new float_tag{"x", 0.25f},
+                    new float_tag{"y", 0.25f},
+                    new double_tag{"magic_number", 3.1414951},
+            }},
         new string_tag{"MAP_NAME", "LEVEL1"},
         new string_tag{"MAP_AUTHOR", "brogrammer"},
         new uint64_tag{"MAP_EDIT_TIMESTAMP", 999999},
         new compound_tag{"SHADERCACHE"},
-        new compound_tag{"ENTITIES",{
-           new compound_tag{"1", {
-               new uint64_tag{"uuid", 42069},
-               new compound_tag{"pos", {
-                   new float_tag{"x", 0.25f},
-                   new float_tag{"y", 0.25f},
-                   new float_tag{"angle", 3.1415f},
-               }},
-           }},
-           new compound_tag{"2", {
-                   new uint64_tag{"uuid", 42044469},
-                   new compound_tag{"pos", {
-                           new float_tag{"x", 0.25f},
-                           new float_tag{"y", 0.25f},
-                           new float_tag{"angle", 3.1415f},
-                   }},
-           }},
-           new compound_tag{"3", {
-                   new uint64_tag{"uuid", 66642044469},
-                   new compound_tag{"pos", {
-                           new float_tag{"x", 0.25f},
-                           new float_tag{"y", 0.25f},
-                           new float_tag{"angle", 3.1415f},
-                   }},
-           }},
-           new compound_tag{"4", {
-                   new uint64_tag{"uuid", 696969},
-                   new compound_tag{"pos", {
-                           new float_tag{"x", 0.25f},
-                           new float_tag{"y", 0.25f},
-                           new float_tag{"angle", 3.1415f},
-                   }},
-           }},
-        }},
 
-        new compound_tag{"boyz", {
-            new float_tag{"x", 0.25f},
-            new float_tag{"y", 0.25f},
-            new double_tag{"magic_number", 3.1414951},
-        }},
+
     }};
 
     tag *t = demo_file.get("SHORTY");
-    std::cout << t->name << std::endl;
-    uint8_t  byte_buff[9999];
+    //std::cout << t->name << std::endl;
+    uint8_t  byte_buff[1000];
     demo_file.serialize(byte_buff, 0);
     // copy byte to char buff for writing
+    std::cout << byte_buff << std::endl;
     char output[sizeof(byte_buff)];
 
     memcpy(output, &byte_buff, sizeof(byte_buff));
